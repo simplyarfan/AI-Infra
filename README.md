@@ -15,7 +15,10 @@ understand, honestly, including the limits of what I have done so far.
 - **01-edge-benchmarks** — the main build. I benchmark small models on Apple
   Silicon with MLX, measure time to first token, decode and prefill throughput,
   and memory, and I run a sustained load test to see the device throttle as it
-  heats up. This is edge inference measured on hardware I own.
+  heats up. I also benchmark the same kind of model on my iPhone and catch it
+  thermally throttling (about 77 down to 69 tokens per second as the phone got
+  hot in my hand), while the Mac stayed flat. This is edge inference measured on
+  hardware I own, across two tiers of device.
 - **02-prefix-caching** — a local demonstration of the idea behind SGLang's
   RadixAttention: when many requests share a long prefix, reusing that work makes
   answers come back faster. Shown with a local model.

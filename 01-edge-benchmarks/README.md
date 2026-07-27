@@ -51,14 +51,59 @@ across models so the comparison is fair.
 Results and charts are in results/ once the scripts are run. See the top level
 notes/hpc-notes.md for why these numbers are really a memory bandwidth story.
 
-## Cross device comparison
+## Cross device comparison: Mac vs iPhone
 
-Where I also run the same model family on an iPhone (using the PocketPal app,
-which runs GGUF models on device), those numbers are recorded here too. One honest
-caveat: the Mac uses MLX format and the phone app uses GGUF, with different
-quantization and sampling, so cross app numbers are not exactly comparable. I fix
-the model family and prompt and report the method rather than pretending the
-setups are identical.
+I ran a model on my iPhone as well, using the PocketPal app (which runs GGUF
+models fully on device via llama.cpp), to get a real second tier of edge hardware
+rather than only benchmarking the laptop.
+
+Model: Llama-3.2-1B-Instruct, 4-bit (Q4_0), 773 MB, running offline on the phone.
+
+iPhone results:
+- Decode throughput: about 77 tokens per second when the phone was cool.
+- Time to first token: roughly 210 to 262 ms.
+
+For context, my Mac got about 96 tokens per second on the larger 1.5B model. So
+for tiny models the phone lands in the same rough range as the laptop, which is a
+real finding on its own: modern phone silicon is surprisingly capable at small
+model inference. The gap would widen quickly as models get bigger, because the
+phone has far less memory bandwidth, and decode is memory bandwidth bound.
+
+One honest caveat on comparability: the Mac uses the MLX format and the phone app
+uses GGUF, with different quantization details and sampling, so the cross device
+numbers are not an exact apples to apples race. I fix the model family and the
+prompt and report the method rather than pretending the setups are identical.
+
+## The thermal result (the interesting part)
+
+This is the observation that motivates my research idea (see
+notes/research-idea.md). I ran the phone continuously with back to back prompts
+for a few minutes and watched the decode throughput:
+
+- Start (cool phone): 77.15, then 77.39, then 77.93 tokens per second. Steady.
+- As it heated up: 73.37 tokens per second.
+- Further in: 69.14 tokens per second.
+
+That is roughly a 10 percent drop, and I could physically feel it happening: the
+phone got noticeably hot in my hand over the run, and the slowdown tracked the
+heat. This is thermal throttling, measured directly on my own device. The Mac, by
+contrast, held flat over five minutes (see the sustained chart) because it has
+active cooling. Same test, two devices, opposite behaviour, and the difference is
+entirely about the ability to shed heat.
+
+A 1B model on a phone was only heavy enough to produce about a 10 percent drop in
+a few minutes. A larger model or a longer session would almost certainly throttle
+harder. The documented numbers in the literature show much steeper drops on phones
+under heavier sustained load, so my measurement is a mild, honest version of a
+real and larger effect.
+
+I also hit the model's context window limit during the long run (the app warned it
+was out of room and offered to grow the context). That is the KV cache filling up
+in practice: as the conversation grows, the cache grows with it until it runs out
+of allocated space. So in one session I ran into two real edge constraints at
+once, the thermal wall and the memory limit.
+
+Screenshots of the phone runs are in results/.
 
 ## Honest limits
 

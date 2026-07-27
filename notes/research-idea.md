@@ -10,9 +10,12 @@ on a phone throttles hard and none of the current methods react to that.
 
 Two things line up:
 
-1. In my own edge benchmarks I can measure that generation speed on a phone drops
-   a lot over a few minutes of sustained use as the device heats up and the
-   system throttles the chip. This is a real, repeatable effect, not a guess.
+1. In my own edge benchmarks I measured generation speed on my iPhone dropping
+   from about 77 tokens per second when cool to about 69 over a few minutes of
+   sustained use, roughly a 10 percent fall, and I could feel the phone getting
+   hot in my hand as it happened. The Mac, with active cooling, stayed flat over
+   the same kind of test. This is a real, repeatable effect I saw myself, not a
+   guess. A bigger model or a longer run would throttle harder.
 
 2. When I read around adaptive speculative decoding, every method decides the
    draft length from the content (entropy, confidence, how many tokens got
