@@ -23,8 +23,8 @@ understand, honestly, including the limits of what I have done so far.
   SGLang), the cluster layer (llm-d), benchmarking tools (GuideLLM, llama-bench),
   the compiler layer (MLIR), how HPC ideas apply, a summary of the WISP paper,
   speculative decoding, and a research idea of my own.
-- **logs** — notes from my working sessions across the two weeks.
-- **diagrams** — hand drawn diagrams.
+- **weekly_logs** — notes from my working sessions across the two weeks.
+- **screenshots** — course completion, the benchmark runs, and other supporting images.
 
 ## The through line
 
