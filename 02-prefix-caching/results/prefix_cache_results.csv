@@ -1,0 +1,17 @@
+case,index,ttft_s
+warm_shared_prefix,0,0.8405
+warm_shared_prefix,1,0.1452
+warm_shared_prefix,2,0.1498
+warm_shared_prefix,3,0.1509
+warm_shared_prefix,4,0.1499
+warm_shared_prefix,5,0.1468
+warm_shared_prefix,6,0.1522
+warm_shared_prefix,7,0.15
+cold_unique_prefix,0,0.7627
+cold_unique_prefix,1,0.7667
+cold_unique_prefix,2,0.7779
+cold_unique_prefix,3,0.7863
+cold_unique_prefix,4,0.8299
+cold_unique_prefix,5,0.8106
+cold_unique_prefix,6,0.8174
+cold_unique_prefix,7,0.8405

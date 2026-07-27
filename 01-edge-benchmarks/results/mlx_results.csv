@@ -1,0 +1,4 @@
+model,prompt_tokens,generated_tokens,ttft_s_mean,ttft_s_std,decode_tps_mean,decode_tps_std,prefill_tps_mean,peak_mem_gb
+mlx-community/Qwen2.5-0.5B-Instruct-4bit,34,200,0.08,0.0,265.6,2.47,452.93,0.33
+mlx-community/Qwen2.5-1.5B-Instruct-4bit,34,200,0.12,0.0,96.62,4.01,285.54,0.95
+mlx-community/Qwen2.5-3B-Instruct-4bit,34,200,0.19,0.01,50.11,3.79,175.55,1.84

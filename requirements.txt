@@ -1,0 +1,4 @@
+mlx-lm
+matplotlib
+pandas
+requests
