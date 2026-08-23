@@ -60,3 +60,40 @@ Across all of these, the thing that decides the draft length is either the conte
 the physical state of the edge device as it heats up and throttles, even though I
 can measure that throttling directly on a phone. That is the opening my research
 idea note describes.
+
+## A different kind of draft model: DFlash
+
+Everything above still drafts sequentially, one token after another, just with
+smarter stopping rules. DFlash (Chen, Liang, Liu, UC San Diego, February 2026)
+does something structurally different: instead of an autoregressive draft model
+guessing one token at a time, it uses a lightweight block diffusion model that
+drafts an entire block of future tokens in a single forward pass, borrowing the
+same kind of parallel, iterative refinement idea behind image diffusion models
+and applying it to text. The draft model is conditioned on the target model's
+hidden states, which keeps the drafts high quality despite being produced all at
+once rather than one step at a time.
+
+The reported numbers are large: over 6x lossless acceleration across a range of
+models and tasks, and about 2.5x faster than EAGLE-3, which had been the
+strongest sequential draft method. It has moved quickly from a research paper
+into production tooling, with support now built into both vLLM and SGLang.
+
+I came across this from a real world sighting rather than only the paper: a
+Saudi bank's GenAI team lead posted about hitting 159 tokens per second and a
+0.150 second time to first token on a 27B model on a single Hopper GPU using
+FP8 precision, described as essentially lossless, with DFlash 2 speculative
+decoding mentioned as coming next. That the paper's own claim of losslessness
+and a practitioner's real production number line up is a good sign this is not
+just a benchmark curiosity.
+
+Why this matters for my own notes: WISP's Wasted Drafting Time problem exists
+specifically because drafting is sequential, if the target rejects early, the
+remaining sequential drafting effort was wasted. DFlash does not have that same
+shape of problem, since there is no sequential chain being built token by token
+to begin with, the whole block is proposed at once. That does not remove the
+edge device's need to run a model at all, so it is a different lever, not a
+replacement for what WISP or my own thermal idea are about, but it is worth
+knowing as a genuinely different design point in the same overall space.
+
+Source: Chen, Liang, and Liu, "DFlash: Block Diffusion for Flash Speculative
+Decoding", arXiv:2602.06036. https://arxiv.org/pdf/2602.06036
