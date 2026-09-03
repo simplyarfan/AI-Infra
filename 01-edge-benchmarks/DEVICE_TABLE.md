@@ -42,7 +42,6 @@ directly comparable row. That is not done yet.
 | iPad Pro 11" (4th gen) | A12Z Bionic | A, matched mobile | 97.05 | 192 | 94.90 | about -2 percent | yes, mild, centred on the back near the Apple logo |
 | MacBook Pro (M4) | Apple M4 | B, Mac only, different model and method | 54.5 (Qwen 3B, MLX) | 190 | 54.4 | none | no |
 | iPhone 15 | A16 Bionic | not yet run | | | | | |
-| iPhone 15 Pro | A17 Pro | not yet run | | | | | |
 | Windows PC | RTX 5060 Ti 16GB | not yet run | | | | | |
 
 Raw numbers for the matched mobile protocol, in the order the prompts were sent,
@@ -94,9 +93,9 @@ exchanges may simply not be enough time for its larger body to start showing
 heat the way the phone did.
 
 Does a newer phone throttle less than an older one, or does it just run hotter
-because it is faster. The iPhone 15, 15 Pro and 17 Pro comparison, run under the
-same Protocol A, should show whether newer chips genuinely help or just move
-the problem.
+because it is faster. The iPhone 15 and 17 Pro comparison, run under the same
+Protocol A, should show whether newer chips genuinely help or just move the
+problem.
 
 How does a desktop GPU behave under sustained pressure, and whether it is worth
 designing a Protocol C for GPUs specifically, since a desktop GPU workload looks
@@ -116,6 +115,6 @@ performance compared to the previous generation. That gives a real, citable
 engineering reason why my 17 Pro result, about a 10 percent drop over four
 exchanges, is so much milder than the iPhone 16 Pro result reported in the
 paper in my reading notes, about a 40 percent drop over their own longer
-protocol. Testing the iPhone 15 and 15 Pro under my own matched Protocol A
+protocol. Testing the iPhone 15 under my own matched Protocol A
 would help separate how much of that gap is the newer cooling design and how
 much is simply a difference between my test and theirs.

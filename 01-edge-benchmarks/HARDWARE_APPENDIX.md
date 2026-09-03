@@ -50,18 +50,17 @@ Note: this is a five to six year old chip by the time of testing, considerably
 older than the iPhone 17 Pro's A19 Pro. Any comparison between the two should
 account for the generation gap, not just phone versus tablet form factor.
 
-## iPhone 15 and iPhone 15 Pro
+## iPhone 15
 
-Not yet tested, access pending. For reference when the tests are run:
+Not yet tested, planned for tonight.
 
-- iPhone 15: Apple A16 Bionic, 6 GB RAM, no vapor chamber cooling
-- iPhone 15 Pro: Apple A17 Pro, 8 GB RAM, no vapor chamber cooling, but the
-  first iPhone chip built on a 3nm process
+- Chip: Apple A16 Bionic
+- RAM: 6 GB
+- Cooling: no vapor chamber, standard design
 
-Having these two alongside the 17 Pro will give a genuine three point
-generational comparison, and specifically lets me isolate the effect of the
-new vapor chamber design in the 17 Pro, since the 15 Pro is the most recent
-model without it.
+Alongside the 17 Pro, this gives a two point generational comparison and helps
+isolate how much of the 17 Pro's milder throttling comes from its new vapor
+chamber cooling versus just being a newer, more efficient chip generally.
 
 ## Windows PC
 

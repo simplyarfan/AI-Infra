@@ -200,6 +200,129 @@ in llama.cpp is usable enough right now to try running a small draft model on
 an NPU on Android hardware as well, to see the same comparison on the other
 platform.
 
+Attempted next step, blocked for a real reason: I tried to install and run
+CoreML-LLM's example app on my iPhone 17 Pro through Xcode. The build tooling
+itself would not launch at all, and after ruling out signing, developer
+directory configuration, and Launch Services registration as causes, the
+real reason turned out to be that my Mac is running a macOS 27 beta, and the
+current public Xcode from the App Store does not support beta operating
+systems, only the latest stable release. Getting a working setup would
+require the matching beta build of Xcode from developer.apple.com under an
+Apple Developer account, which is a reasonable thing to do at a calmer point
+but not something to rush through. Recording this here because it is a real,
+specific environment constraint, not a dead end, and it is worth knowing
+exactly why before trying again.
+
+## Live examples that tie this together
+
+A running collection of real, current, commercial signals that this exact
+problem, splitting AI work sensibly across hardware and managing heat, is
+taken seriously by industry, not only by the research papers cited below.
+Adding to this as I come across more.
+
+### Siri AI in iOS 27
+
+While waiting on device access for other tests, I looked into why my own
+iPhone barely warms up when I use the new Siri AI in the iOS 27 beta, given
+everything above about GPU based LLM apps throttling. The answer turns out to
+have two parts, and both connect directly to this project.
+
+First, and this was a genuine surprise: a large part of what Siri AI does is
+not computed on the phone at all. Apple built Siri AI as a three tier system.
+Simple requests are handled by a small model on the device. Moderate requests
+are sent to Apple's own Private Cloud Compute servers. The heaviest reasoning
+is handled by a custom Google Gemini model, reported at roughly 1.2 trillion
+parameters, running on Google Cloud, under a paid partnership between Apple
+and Google announced in January 2026. So unlike my own benchmarks, where the
+whole conversation runs start to finish on the phone's own chip, a meaningful
+share of what Siri AI does is offloaded elsewhere by design. That is a
+commercial, very large scale version of exactly the edge and cloud split idea
+behind WISP, just with three tiers instead of two, and it is a big part of why
+the phone does not have to generate as much heat: much of the hardest work
+never runs on it in the first place.
+
+Second, for the part that does run on the phone, the most capable on-device
+tier is limited to devices with at least 12 GB of RAM, which currently means
+the iPhone 17 Pro and iPhone Air, and my own hardware appendix already lists
+the 17 Pro at exactly 12 GB. That on-device tier is Apple's own Foundation
+Model, and while I have not found a source stating outright that this
+specific model runs on the Apple Neural Engine, it fits everything else I
+found this session: Apple's own on-device model line uses small parameter
+counts with aggressive quantization and KV cache sharing, which is the same
+family of technique CoreML-LLM uses to run community models on the ANE. The
+reasonable, though not fully confirmed, read is that Apple's own first party
+model already does for itself what CoreML-LLM is doing unofficially for
+third party models: keep the on-device portion of the work on the Neural
+Engine rather than the GPU. I am flagging the difference between what is
+directly sourced here (the three tier architecture, the Google partnership,
+the 12 GB requirement) and what is a well supported inference rather than a
+confirmed fact (that the on-device tier specifically uses the ANE).
+
+Either way, Siri AI is a real, live, large scale example sitting on my own
+phone of the exact two ideas this whole file is about: splitting work between
+edge and cloud, and keeping the on-device portion off the GPU.
+
+Sources: Apple Newsroom, "Apple introduces Siri AI, a profoundly more
+capable and personal assistant", June 2026,
+https://www.apple.com/newsroom/2026/06/apple-introduces-siri-ai-a-profoundly-more-capable-and-personal-assistant/.
+MacRumors, "Which iPhones Support Every iOS 27 Feature?", August 2026,
+https://www.macrumors.com/2026/08/17/which-iphones-support-every-ios-27-feature/,
+for the three tier architecture, the Google Gemini partnership, and the 12 GB
+on-device model requirement.
+
+### HUMAIN's AI PC, built with Qualcomm
+
+Came across a LinkedIn teaser from HUMAIN, a Saudi AI company, showing a
+laptop called Horizon Ultra, built with Qualcomm over about a year, and
+described as bringing CPU, GPU, and NPU together to run AI models locally.
+This is directly relevant, and worth being precise about what is genuinely
+new versus what is standard platform behaviour being presented as news.
+
+Confirmed the chip: Qualcomm Snapdragon X2 Elite, launched in 2026. Qualcomm's
+own product materials for this chip state directly that it spreads AI
+workloads across the CPU, GPU, and NPU to optimise power consumption, so the
+three way split is a feature of the chip platform itself, not something
+HUMAIN engineered. What HUMAIN is actually building on top of it, per their
+own post, is a new operating system aimed at agentic AI, described as
+rethought around intent rather than apps, with the fuller reveal saved for a
+conference called LEAP, a major annual tech event in Riyadh. The post itself
+says the hardware is not the part they are most excited about, which is a
+fairly direct admission that the headline chip story is not the novel part.
+
+The genuinely relevant technical detail: the X2 Elite's NPU is rated at 80
+TOPS, up from 45 TOPS on the previous generation, and its internal scheduler
+dynamically adjusts voltage and frequency, DVFS again, specifically to
+balance AI performance against the device's thermal envelope. This is the
+same DVFS mechanism from my own measurements and from EnerInfer, now clearly
+named as a first class design goal in a shipping 2026 laptop chip, not just
+something I inferred from watching my own phone throttle. The CPU side also
+gained new instructions, called SME, specifically to accelerate AI and HPC
+style workloads, meaning even the fallback chip in this three way split is
+now purpose built for this kind of work, not a general purpose afterthought.
+
+One honest note of scepticism worth keeping: tech press coverage around the
+X2 Elite launch pointed out that some of Qualcomm's longest standing laptop
+partners were not publicly endorsing this platform at launch, only newer
+partners including HUMAIN, Asus, and HP. Worth taking the announcement
+seriously as a real signal that CPU, GPU, NPU allocation and thermal
+management is now a marketed, competitive feature of commercial hardware, but
+without assuming every claim in a launch post is fully proven yet.
+
+Sources: Tareq Amin (HUMAIN), LinkedIn post, August 2026. Qualcomm Snapdragon
+X2 Elite product materials, for the CPU, GPU, NPU workload spreading claim,
+the 80 TOPS NPU figure, the DVFS based thermal scheduler, and the SME CPU
+instructions.
+
+### DFlash, sighted via a real production result
+
+Covered in full in notes/speculative-decoding.md, but noting here too since
+it is the same kind of signal: a GenAI team lead at a Saudi bank posted real
+production numbers, 159 tokens per second and 0.150 second time to first
+token on a 27B model on a single Hopper GPU using FP8, achieved through DFlash
+style speculative decoding. Another live, current, Saudi hosted data point
+that the techniques this project is built around are being used for real,
+measured production work right now, not only studied in papers.
+
 ## References and sources
 
 Papers and technical sources behind the claims above, so I can go back to any
