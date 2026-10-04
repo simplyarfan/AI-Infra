@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional, Sequence
 
+from .dataset import ConfigPerfDataset
+from .knobs import Knob
 from .objectives import Objectives
 from .thermal_model import ThermalParams
-from .types import Config, Observation, state_rank
+from .types import Config, Observation, config_key, state_rank
 
 
 # --- Agent 2: baseline -------------------------------------------------------
@@ -52,13 +54,55 @@ class BaselineAgent:
             )
 
 
+def known_good_config(dataset: ConfigPerfDataset, knobs: Sequence[Knob], objectives: Objectives,
+                      min_samples: int = 30) -> Optional[Config]:
+    """The "default / prior configuration" input to Agent 2, read from the
+    Configuration-Performance Dataset.
+
+    Returns the best configuration that earlier sessions ran for long enough to
+    trust, never saw hardware throttling in, and finished under the temperature
+    limit. Best means highest value of the objective function from Agent 1.
+    None if there is no such configuration."""
+    names = {k.name for k in knobs}
+    groups: Dict[tuple, list] = {}
+    for r in dataset.records:
+        if set(r.config) == names:
+            groups.setdefault(config_key(r.config), []).append(r)
+    cands = []
+    for key, rs in groups.items():
+        if len(rs) < min_samples or any(r.throttled for r in rs):
+            continue
+        temps = [r.temp_c for r in rs if r.temp_c is not None][-10:]
+        if not temps or sum(temps) / len(temps) > objectives.limit_c:
+            continue
+        cfg = dict(key)
+        q = 1.0
+        for k in knobs:
+            q *= k.levels[cfg[k.name]].quality_scale
+        cands.append((cfg, sum(r.tok_per_s for r in rs) / len(rs), q))
+    if not cands:
+        return None
+    ref = max(c[1] for c in cands)
+    best = max(cands, key=lambda c: c[1] / ref + objectives.quality_weight * c[2])
+    return best[0]
+
+
 # --- Agent 3: evaluation -----------------------------------------------------
 @dataclass
 class Assessment:
     status: str               # violation | thermal_pressure | headroom | ok
-    needs_optimization: bool
+    needs_optimization: bool  # the "Is optimization needed?" gate on the slide
     reasons: List[str]
     forecast_c: Optional[float] = None
+
+    @property
+    def system_state(self) -> str:
+        """The same verdict in the slide's vocabulary for Agent 3: underutilization,
+        overload, instability, constraint violation (or stable)."""
+        if self.status == "thermal_pressure" and any("flapping" in r for r in self.reasons):
+            return "instability"
+        return {"violation": "constraint_violation", "thermal_pressure": "overload",
+                "headroom": "underutilization", "ok": "stable"}[self.status]
 
 
 class EvaluationAgent:

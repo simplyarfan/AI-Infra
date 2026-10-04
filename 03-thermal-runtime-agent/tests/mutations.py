@@ -8,7 +8,9 @@ MUT = os.environ.get("MUT", "")
 import thermal_agent.backends.nvidia as nvidia
 import thermal_agent.evaluation as evaluation
 import thermal_agent.observer as observer
+import thermal_agent.optimizer as optimizer
 import thermal_agent.predictor as predictor
+import thermal_agent.surrogate as surrogate
 import thermal_agent.transformer as transformer
 from thermal_agent.evaluation import Assessment
 
@@ -46,8 +48,8 @@ elif MUT == "software_cap_counted_as_throttle":
 elif MUT == "back_off_one_level_only":
     _orig = predictor.ConfigPredictor.propose
 
-    def _one_level(self, current, assessment, obs, params, now):
-        target, why = _orig(self, current, assessment, obs, params, now)
+    def _one_level(self, current, assessment, obs, params, now, can_raise=None):
+        target, why = _orig(self, current, assessment, obs, params, now, can_raise)
         if sum(target.values()) < sum(current.values()):
             target = {k: max(target[k], current[k] - 1) for k in current}
         return target, why
@@ -72,3 +74,36 @@ elif MUT == "lowering_waits_for_dwell":
             changed = True
         return changed, "; ".join(notes)
     transformer.Transformer.apply = _apply
+
+elif MUT == "advisor_unvetted":
+    optimizer.OptimizationReasoningAgent._vet = lambda self, *a, **k: (True, "mutated")
+
+elif MUT == "quality_floor_ignored":
+    predictor.ConfigPredictor.quality = lambda self, config: 1.0
+
+elif MUT == "surrogate_never_learns":
+    surrogate.Surrogate.update = lambda self, *a, **k: None
+
+elif MUT == "failed_exploration_not_penalised":
+    optimizer.OptimizationReasoningAgent._manage_exploration = lambda self, mode, now, params: None
+
+elif MUT == "warm_start_ignored":
+    transformer.DeploymentMonitor.reuse = lambda self, ds, knobs, obj: None
+
+elif MUT == "dataset_not_fed_to_the_predictor":
+    predictor.ConfigPredictor.fit_from_dataset = lambda self, ds: 0
+
+elif MUT == "gate_always_open":
+    _assess = evaluation.EvaluationAgent.assess
+
+    def _open(self, obs, params, at_top, flapping=False):
+        a = _assess(self, obs, params, at_top, flapping)
+        a.needs_optimization = True
+        return a
+    evaluation.EvaluationAgent.assess = _open
+
+elif MUT == "held_raises_not_respected_by_4a":
+    transformer.Transformer.can_raise = lambda self, name, now: True
+
+elif MUT == "drift_does_not_reach_agent_4":
+    optimizer.OptimizationReasoningAgent.reoptimize = lambda self, observer, err: None

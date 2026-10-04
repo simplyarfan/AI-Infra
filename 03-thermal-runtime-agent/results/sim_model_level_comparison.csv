@@ -1,0 +1,7 @@
+preset,policy,mean_tok_per_s,tail_tok_per_s,peak_temp_c,time_throttled_s,time_over_budget_s,j_per_token,level_changes,throttle_events,mean_quality
+phone_quant_flat,fixed_top,61.51,61.36,55.3,405.0,355.0,0.059,0,29,1.0
+phone_quant_flat,best_fixed_with_hindsight,41.69,41.69,46.6,0.0,0.0,0.065,0,0,0.97
+phone_quant_flat,thermal_agent,44.2,41.69,47.68,0.0,0.0,0.063,4,0,0.9622
+phone_quant_cools,fixed_top,61.51,61.36,55.3,405.0,355.0,0.059,0,29,1.0
+phone_quant_cools,best_fixed_with_hindsight,80.61,80.61,50.25,0.0,0.0,0.039,0,0,0.9154
+phone_quant_cools,thermal_agent,74.46,74.41,51.83,0.0,0.0,0.045,3,0,0.946

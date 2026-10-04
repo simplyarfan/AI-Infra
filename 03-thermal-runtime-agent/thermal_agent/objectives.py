@@ -32,6 +32,15 @@ class Objectives:
     # recover when the state falls back to the up state.
     coarse_down_state: str = "serious"
     coarse_up_state: str = "nominal"
+    # Quality constraint (the "accuracy" constraint on the AutoOptAgent slide).
+    # A configuration whose quality score is below this is never chosen, even to
+    # avoid heat. Scores are relative to the top configuration.
+    min_quality: float = 0.0
+    # Exchange rate in the objective function. Utility of a configuration is
+    #   tok_per_s / reference_tok_per_s + quality_weight * quality
+    # so quality_weight says how many "units of relative speed" one unit of
+    # quality is worth. It only matters when knobs change quality.
+    quality_weight: float = 2.0
 
     @property
     def limit_c(self) -> float:
@@ -42,6 +51,8 @@ class Objectives:
             raise ValueError("margins must be non negative")
         if self.horizon_s <= 0:
             raise ValueError("horizon must be positive")
+        if not 0.0 <= self.min_quality <= 1.0 or self.quality_weight < 0:
+            raise ValueError("min_quality must be in [0, 1] and quality_weight non negative")
         for s in (self.coarse_down_state, self.coarse_up_state):
             if s not in THERMAL_STATES:
                 raise ValueError("unknown thermal state: " + s)

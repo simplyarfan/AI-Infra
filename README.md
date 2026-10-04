@@ -11,23 +11,28 @@ understand, honestly, including the limits of what I have done so far.
 
 ## What is in here
 
-- **00-course** — my notes from the vLLM inference course, plus the certificate.
-- **01-edge-benchmarks** — the main build. I benchmark small models on Apple
+- **00-course**: my notes from the vLLM inference course, plus the certificate.
+- **01-edge-benchmarks**: the main build. I benchmark small models on Apple
   Silicon with MLX, measure time to first token, decode and prefill throughput,
   and memory, and I run a sustained load test to see the device throttle as it
   heats up. I also benchmark the same kind of model on my iPhone and catch it
   thermally throttling (about 77 down to 69 tokens per second as the phone got
   hot in my hand), while the Mac stayed flat. This is edge inference measured on
   hardware I own, across two tiers of device.
-- **02-prefix-caching** — a local demonstration of the idea behind SGLang's
+- **02-prefix-caching**: a local demonstration of the idea behind SGLang's
   RadixAttention: when many requests share a long prefix, reusing that work makes
   answers come back faster. Shown with a local model.
-- **notes** — my working understanding of the landscape: the engines (vLLM,
+- **03-thermal-runtime-agent**: the AutoOptAgent lifecycle (objectives, baseline,
+  evaluation, optimization and reasoning, prediction, transformation, observability,
+  deployment and monitoring) built for a new use case, thermal-aware inference on
+  edge devices. Validated on a simulator I wrote, with 148 tests and a mutation
+  check. Not yet run on real hardware. Read its README for the limits.
+- **notes**: my working understanding of the landscape: the engines (vLLM,
   SGLang), the cluster layer (llm-d), benchmarking tools (GuideLLM, llama-bench),
   the compiler layer (MLIR), how HPC ideas apply, a summary of the WISP paper,
   speculative decoding, and a research idea of my own.
-- **weekly_logs** — notes from my working sessions across the two weeks.
-- **screenshots** — course completion, the benchmark runs, and other supporting images.
+- **weekly_logs**: notes from my working sessions across the two weeks.
+- **screenshots**: course completion, the benchmark runs, and other supporting images.
 
 ## The through line
 

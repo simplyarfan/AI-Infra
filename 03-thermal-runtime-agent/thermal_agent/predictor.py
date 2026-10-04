@@ -12,9 +12,15 @@ than a black box search, which matters for a live edge device:
   - After backing off from a configuration, going back to anything that draws as
     much power is blocked for tabu_s seconds, which stops hunting.
 
-Predicted power and throughput come from measured data when the configuration
-has been visited, and otherwise from the knob priors scaled by what the device
-has actually been doing.
+Predicted power and throughput come from a Bayesian surrogate (surrogate.py)
+that starts at the knob priors and is corrected by every observation, so what
+the agent learns about one configuration carries over to configurations it has
+not tried. Candidates are ranked by the objective function from Agent 1:
+
+    utility = tok_per_s / reference_tok_per_s + quality_weight * quality
+
+subject to the thermal limit and the quality floor. With knobs that do not
+change quality this reduces to "highest throughput that stays cool".
 """
 from __future__ import annotations
 
@@ -25,6 +31,7 @@ from .dataset import ConfigPerfDataset
 from .evaluation import Assessment
 from .knobs import Knob
 from .objectives import Objectives
+from .surrogate import Surrogate
 from .thermal_model import ThermalParams
 from .types import Config, Observation, state_rank
 
@@ -37,50 +44,62 @@ class ConfigPredictor:
         dataset: ConfigPerfDataset,
         idle_power_w: float = 0.0,
         tabu_s: float = 90.0,
-        min_stat_n: int = 3,
-        alpha: float = 0.3,
+        surrogate: Optional[Surrogate] = None,
     ) -> None:
         self.knobs = list(knobs)
         self.obj = objectives
         self.dataset = dataset
         self.idle = idle_power_w
         self.tabu_s = tabu_s
-        self.min_stat_n = min_stat_n
-        self.alpha = alpha
-        self.full_dyn_power: Optional[float] = None
-        self.full_tps: Optional[float] = None
+        # Agent 4 raises this after a failed exploration (see optimizer.py).
+        self.tabu_scale = 1.0
+        self.surrogate = surrogate or Surrogate(self.knobs)
         self._block_power: Optional[float] = None
         self._block_until: float = -1.0
         self._coarse_block_idx: Optional[int] = None
 
-    # priors ---------------------------------------------------------------
-    def _scale(self, config: Config, attr: str) -> float:
-        v = 1.0
-        for k in self.knobs:
-            v *= getattr(k.levels[config[k.name]], attr)
-        return v
+    # learning ---------------------------------------------------------------
+    @property
+    def seeded(self) -> bool:
+        return self.surrogate.seeded
 
     def seed(self, config: Config, power_w: float, tok_per_s: float) -> None:
-        self.full_dyn_power = max(1e-6, (power_w - self.idle) / self._scale(config, "power_scale"))
-        self.full_tps = tok_per_s / self._scale(config, "speed_scale")
+        self.surrogate.update(config, max(1e-6, power_w - self.idle), tok_per_s)
 
     def learn(self, config: Config, obs: Observation) -> None:
-        """Refine the full power and speed estimates from an unthrottled reading."""
-        if obs.throttled or self.full_dyn_power is None:
+        """Add one unthrottled reading. Throttled readings describe the
+        hardware governor, not the configuration, so they are left out."""
+        if obs.throttled or not self.seeded:
             return
-        dyn = max(1e-6, (obs.power_w - self.idle) / self._scale(config, "power_scale"))
-        tps = obs.tok_per_s / self._scale(config, "speed_scale")
-        self.full_dyn_power += self.alpha * (dyn - self.full_dyn_power)
-        self.full_tps += self.alpha * (tps - self.full_tps)
+        self.surrogate.update(config, max(1e-6, obs.power_w - self.idle), obs.tok_per_s)
 
+    def fit_from_dataset(self, dataset: ConfigPerfDataset) -> int:
+        """Warm start from an earlier session's records. Returns how many were used."""
+        n = 0
+        for r in dataset.records:
+            if r.throttled or set(r.config) != {k.name for k in self.knobs}:
+                continue
+            self.surrogate.update(r.config, max(1e-6, r.power_w - self.idle), r.tok_per_s)
+            n += 1
+        return n
+
+    # prediction ---------------------------------------------------------------
     def predict(self, config: Config) -> Tuple[float, float]:
-        st = self.dataset.stats(config, include_throttled=False, min_n=self.min_stat_n)
-        if st is not None:
-            return st.mean_power, st.mean_tps
-        return (
-            self.idle + self.full_dyn_power * self._scale(config, "power_scale"),
-            self.full_tps * self._scale(config, "speed_scale"),
-        )
+        """Predicted (total power in watts, tokens per second)."""
+        dyn, tps = self.surrogate.predict(config)
+        return self.idle + dyn, tps
+
+    def quality(self, config: Config) -> float:
+        q = 1.0
+        for k in self.knobs:
+            q *= k.levels[config[k.name]].quality_scale
+        return q
+
+    def _top_config(self) -> Config:
+        return {k.name: k.top for k in self.knobs}
+
+    def utility(self, config: Config, ref_tps: float) -> float:
+        return self.predict(config)[1] / ref_tps + self.obj.quality_weight * self.quality(config)
 
     # candidate generation ---------------------------------------------------
     def _all_configs(self) -> List[Config]:
@@ -117,9 +136,13 @@ class ConfigPredictor:
     # decision -------------------------------------------------------------
     def propose(
         self, current: Config, assessment: Assessment, obs: Observation,
-        params: ThermalParams, now: float,
+        params: ThermalParams, now: float, can_raise=None,
     ) -> Tuple[Config, str]:
-        if self.full_dyn_power is None:
+        """can_raise(knob_name) says whether the transformation agent would
+        accept a raise of that knob right now. Candidates that need a held
+        raise are skipped, so the configuration that was vetted is the one that
+        gets applied, not a partly applied version of it."""
+        if not self.seeded:
             self.seed(current, obs.power_w, obs.tok_per_s)
         if obs.temp_c is None:
             return self._propose_coarse(current, assessment, obs, now)
@@ -127,16 +150,25 @@ class ConfigPredictor:
         o = self.obj
         status = assessment.status
         cur_power, _ = self.predict(current)
+        ref_tps = max(1e-9, self.predict(self._top_config())[1])
 
         if status in ("violation", "thermal_pressure"):
-            cur_scale = self._scale(current, "power_scale")
-            pool = [c for c in self._all_configs() if self._scale(c, "power_scale") < cur_scale - 1e-12]
-            if not pool:
+            cur_dyn = cur_power - self.idle
+            def reachable(c: Config) -> bool:
+                return can_raise is None or all(
+                    c[k.name] <= current[k.name] or can_raise(k.name) for k in self.knobs)
+
+            cooler = [c for c in self._all_configs()
+                      if self.predict(c)[0] - self.idle < cur_dyn * (1.0 - 1e-3) and reachable(c)]
+            if not cooler:
                 return current, "already at the lowest configuration"
+            pool = [c for c in cooler if self.quality(c) >= o.min_quality]
+            if not pool:
+                return current, "no cooler configuration meets the quality floor"
             scored = []
             for c in pool:
-                p, t = self.predict(c)
-                scored.append((c, p, t, params.predict(obs.temp_c, p, o.horizon_s)))
+                p, _t = self.predict(c)
+                scored.append((c, p, self.utility(c, ref_tps), params.predict(obs.temp_c, p, o.horizon_s)))
             safe = [s for s in scored if s[3] <= o.limit_c]
             if safe:
                 best = max(safe, key=lambda s: (round(s[2], 6), -s[1]))
@@ -145,22 +177,27 @@ class ConfigPredictor:
                 best = min(scored, key=lambda s: s[3])
                 why = "back off: no safe configuration, taking the coolest (forecast %.1fC)" % best[3]
             self._block_power = cur_power
-            self._block_until = now + self.tabu_s
+            self._block_until = now + self.tabu_s * self.tabu_scale
             return best[0], why
 
         if status == "headroom":
+            cur_u = self.utility(current, ref_tps)
             options = []
             for c in self._neighbours_up(current):
-                p, t = self.predict(c)
-                if self._blocked(p, now):
+                p, _t = self.predict(c)
+                if self._blocked(p, now) or self.quality(c) < o.min_quality:
                     continue
-                if params.steady_state(p) <= o.limit_c:
-                    options.append((c, p, t))
+                if can_raise is not None and not all(
+                        c[k.name] <= current[k.name] or can_raise(k.name) for k in self.knobs):
+                    continue
+                u = self.utility(c, ref_tps)
+                if params.steady_state(p) <= o.limit_c and u > cur_u + 1e-9:
+                    options.append((c, p, u))
             if options:
                 best = max(options, key=lambda s: s[2])
                 return best[0], "step up: steady state %.1fC under limit %.1fC" % (
                     params.steady_state(best[1]), o.limit_c)
-            return current, "headroom but no safe step up"
+            return current, "headroom but no safe step up that improves the objective"
 
         return current, "hold"
 

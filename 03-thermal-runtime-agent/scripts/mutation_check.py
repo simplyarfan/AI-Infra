@@ -24,6 +24,15 @@ MUTATIONS = [
     ("software_cap_counted_as_throttle", "the agent's own power cap is mistaken for hardware throttling"),
     ("back_off_one_level_only", "backing off is limited to one level at a time"),
     ("lowering_waits_for_dwell", "backing off has to wait for the dwell timer"),
+    ("advisor_unvetted", "Agent 4 applies whatever the advisor suggests without vetting it"),
+    ("quality_floor_ignored", "4a ignores the quality floor from Agent 1"),
+    ("surrogate_never_learns", "4a's surrogate never updates from observations"),
+    ("failed_exploration_not_penalised", "Agent 4 does not lengthen the block after a failed exploration"),
+    ("warm_start_ignored", "Agent 8 never reuses the known good configuration from the dataset"),
+    ("dataset_not_fed_to_the_predictor", "the dataset is not used to train 4a on a new session"),
+    ("gate_always_open", "the 'is optimization needed?' gate always says yes"),
+    ("held_raises_not_respected_by_4a", "4a proposes raises that 4b will hold, so a half applied move happens"),
+    ("drift_does_not_reach_agent_4", "Agent 8 detects drift but Agent 4 never re-optimizes"),
 ]
 
 
