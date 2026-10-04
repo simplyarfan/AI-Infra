@@ -1,0 +1,7 @@
+preset,policy,mean_tok_per_s,tail_tok_per_s,peak_temp_c,time_throttled_s,time_over_budget_s,j_per_token,level_changes,throttle_events
+phone_severe,fixed_full_power,62.05,60.44,55.3,261.0,231.0,0.059,0,19
+phone_severe,fixed_50_percent,66.68,66.67,51.0,0.0,0.0,0.049,0,0
+phone_severe,thermal_agent,66.77,66.67,51.0,0.0,0.0,0.049,2,0
+tablet_cool,fixed_full_power,97.0,97.0,42.36,0.0,0.0,0.062,0,0
+tablet_cool,fixed_50_percent,83.99,83.99,34.4,0.0,0.0,0.039,0,0
+tablet_cool,thermal_agent,96.22,97.0,42.26,0.0,0.0,0.06,4,0
